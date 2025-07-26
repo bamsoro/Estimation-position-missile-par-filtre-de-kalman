@@ -18,7 +18,7 @@ J'ai établi les fondements théoriques du filtre en démontrant :
 **Étape de Prédiction :**
 
 ```math
-\hat{X}n^- = a\hat{X}{n-1}, \quad P_n^- = a^2P_{n-1} + \sigma^2
+\hat{X}_n^- = a\hat{X}_{n-1}, \quad P_n^- = a^2P_{n-1} + \sigma^2
 ```
 
 
