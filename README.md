@@ -73,7 +73,7 @@ theta <- atan((X[2,] - s1[2])/(X[1,] - s1[1])) + rnorm(T, sd=sigma_v)
 
 **Sonokoli**  
 Étudiant en 3e année à l’ENSAI – Spécialisation Data Science et génie statistiques
-Projet réalisé sous la supervision de Youssef Esstafa
+Projet réalisé sous la supervision de Salima El Kolei, Enseignante chercheuse à l'ENSAI
 
 ---
 
