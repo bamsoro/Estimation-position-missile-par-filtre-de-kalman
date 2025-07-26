@@ -1,0 +1,190 @@
+---
+title: "Code_filtrage"
+author: "Bamara Soro"
+date: "2025-02-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Estimation de la trajectoire
+
+
+# Libraries
+
+```{r}
+library(MASS)
+
+```
+
+
+# Simulation des données
+
+```{r}
+set.seed(1)
+# Paramètres
+T <- 500  # Nombre d'instants de temps
+Delta <- 0.01  # Période d'échantillonnage
+q1 <- q2 <- 0.1  # Coefficients de diffusion
+sigma_v <- 0.05  # Écart-type du bruit de mesure
+
+# Matrice de transition d'état
+F <- matrix(c(1, 0, Delta, 0,
+              0, 1, 0, Delta,
+              0, 0, 1, 0,
+              0, 0, 0, 1), nrow=4, byrow=TRUE)
+
+# Matrice de covariance du bruit de processus
+Q <- matrix(c(q1 * (Delta^3) / 3, 0, q1 * (Delta^2) / 2, 0,
+              0, q2 * (Delta^3) / 3, 0, q2 * (Delta^2) / 2,
+              q1 * (Delta^2) / 2, 0, q1 * Delta, 0,
+              0, q2 * (Delta^2) / 2, 0, q2 * Delta), nrow=4, byrow=TRUE)
+
+# Position du capteur
+s1 <- c(-1.5, 0.5)
+
+# Initialisation de la trajectoire
+X <- matrix(0, nrow=4, ncol=T)  # [X, Z, X_dot, Z_dot]
+X[,1] <- c(0, 0, 1, 0)  # Position et vitesse initiales
+
+# Génération du bruit de processus
+W <- mvrnorm(n=T, mu=rep(0, 4), Sigma=Q)
+
+# Génération du processus d'état
+for (n in 2:T) {
+  X[,n] <- F %*% X[,n-1] + W[n,]
+}
+
+# Génération des observations bruitées
+theta <- atan((X[2,] - s1[2])/ (X[1,] - s1[1])) + rnorm(T, mean=0, sd=sigma_v)
+
+# Affichage de la trajectoire
+plot(X[1,], X[2,], type="l", col="blue", xlab="X", ylab="Z", main="Trajectoire simulée",xlim=c(-2,10),ylim = c(0,3))
+points(s1[1], s1[2], col="red", pch=19)  # Position du capteur
+legend("topright", legend=c("Trajectoire", "Capteur"), col=c("blue", "red"), lty=c(1, NA), pch=c(NA, 19))
+
+# Affichage des observations bruitées
+plot(1:T, theta, type="l", col="red", xlab="Temps", ylab="Position", main="")
+
+lines(1:T, atan((X[2,] - s1[2])/ (X[1,] - s1[1])), col = "blue")
+
+legend("topleft", legend = c("Réelle", "Mesurée"), col = c("blue", "red"), lty = c(1, 1), lwd = c(1, 1))
+
+```
+
+# Estimation de la trajectoire à partir de $\theta$ la trajectoire obervée (simulée ici)
+
+## Paramètres et linéarisation
+
+```{r}
+set.seed(1)
+
+a <- 1  # Paramètre du modèle d'état
+
+# Matrice de transition d'état
+A_theta <- F
+
+
+# Position initiale du capteur
+s1 <- c(-1.5, 0.5)
+
+# Initialisation de la trajectoire
+X <- matrix(0, nrow=4, ncol=T)  # [X, Z, X_dot, Z_dot]
+X[,1] <- c(0, 0, 1, 0)  # Position et vitesse initiales
+
+# Génération du bruit de processus
+W <- mvrnorm(n=T, mu=rep(0, 4), Sigma=Q)
+
+# Génération du processus d'état à retrouver
+for (n in 2:T) {
+  X[,n] <- F %*% X[,n-1] + W[n,]
+}
+
+# Génération des observations bruitées
+theta <- atan((X[2,] - s1[2])/ (X[1,] - s1[1])) + rnorm(T, mean=0, sd=sigma_v)
+
+# Calcul de theta_bis
+theta_bis <- numeric(T)
+
+for (n in 1:T) {
+  # Calcul de la matrice jacobienne C_theta
+  C_theta <- matrix(0, nrow=1, ncol=4)
+  C_theta[1,1] <- -(X[2,n] - s1[2]) / ((X[1,n] - s1[1])^2 + (X[2,n] - s1[2])^2)
+  C_theta[1,2] <- 1 / ((X[1,n] - s1[1])^2 + (X[2,n] - s1[2])^2)
+
+
+  # Calcul du biais d_n
+  d_n <- atan((X[2,n] - s1[2]) / (X[1,n] - s1[1])) - C_theta %*% X[,n]
+
+  # Calcul de theta_bis
+  theta_bis[n] <- C_theta %*% X[,n] + d_n + rnorm(1, mean=0, sd=sigma_v)
+}
+
+# Affichage des observations bruitées
+plot(1:T, theta, type="l", col="purple", xlab="Temps", ylab=expression(theta), main="Observations bruitées non linéarisées")
+
+```
+
+
+```{r}
+
+# Initialisation du filtre de Kalman étendu
+x_hat <- X[,1]  # État initial fixé, celui de départ du missile
+P <- diag(c(1, 1, 1, 1))  # Covariance initiale
+R <- sigma_v^2  # Covariance du bruit de mesure, i.e 
+
+# Filtre de Kalman Étendu
+x_hat_ekf <- matrix(0, nrow=4, ncol=T)
+x_hat_ekf[,1] <- x_hat
+
+for (n in 2:T) {
+  # Prédiction
+  x_hat_minus <- F %*% x_hat
+  P_minus <- F %*% P %*% t(F) + Q
+
+  # Calcul de la matrice jacobienne C_theta en fonction des x_hat_minus estimés
+  C_theta <- matrix(0, nrow=1, ncol=4)
+  C_theta[1,1] <- -(x_hat_minus[2] - s1[2]) / ((x_hat_minus[1] - s1[1])^2 + (x_hat_minus[2] - s1[2])^2)
+  C_theta[1,2] <- 1 / ((x_hat_minus[1] - s1[1])^2 + (x_hat_minus[2] - s1[2])^2)
+
+  # Mise à jour
+  K <- P_minus %*% t(C_theta) %*% solve(C_theta %*% P_minus %*% t(C_theta) + R)
+  theta_hat <- atan((x_hat_minus[2] - s1[2]) / (x_hat_minus[1] - s1[1]))
+  x_hat <- x_hat_minus + K %*% (theta_bis[n] - theta_hat)
+  P <- (diag(4) - K %*% C_theta) %*% P_minus
+
+  # Stockage des résultats dans une liste
+  x_hat_ekf[,n] <- x_hat
+}
+
+# Affichage de la trajectoire réelle 
+plot(X[1,], X[2,], type="l", col="blue", xlab="X", ylab="Z", main="Trajectoire estimée", xlim=c(-2,10), ylim=c(-0.25,3))
+points(s1[1], s1[2], col="red", pch=19)  # Position du capteur
+#Ajout de la trajectoire simulée
+lines(x_hat_ekf[1,], x_hat_ekf[2,], col="green", lwd=2)  # Trajectoire estimée
+legend("topright", legend=c("Trajectoire réelle", "Capteur", "Trajectoire estimée"), col=c("blue", "red", "green"), lty=c(1, NA, 1), pch=c(NA, 19, NA), lwd=c(1, 1, 2))
+
+# Affichage des observations bruitées
+plot(1:T, theta_bis, type="l", col="purple", xlab="Temps", ylab=expression(theta), main="Observations bruitées linéarisées")
+```
+
+
+# On visualise les trajectoires estimées VS la trajectoire réelle
+
+
+```{r}
+# Affichage des trajectoires
+plot(1:T, atan((x_hat_ekf[2,] - s1[2])/ (x_hat_ekf[1,] - s1[1])), type = "p", col = "black", xlab = "Temps", ylab = "Position", main = "", cex = 0.5,ylim = c(-0.4, 0.25))
+lines(1:T, atan((X[2,] - s1[2])/ (X[1,] - s1[1])), col = "blue", lwd = 2)
+lines(1:T, theta_bis, type = "l", col = "red", lwd = 0.75)
+
+# Ajout de la légende avec les styles correspondants
+legend("topleft", legend = c("Estimée", "Réelle", "Mesurée"), col = c("black", "blue", "red"), lty = c(NA, 1, 1), pch = c(1, NA, NA), lwd = c(1, 2, 0.75), cex = 0.5)
+
+
+```
+
+
+L'estimation se stabilise très clairement : la variabilité s'estompe drastiquement à mesure que le missile s'éloigne du point de lancement.  
