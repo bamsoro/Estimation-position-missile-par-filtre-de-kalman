@@ -1,7 +1,5 @@
 # 🎯 Estimation de Trajectoire de Missile par Filtre de Kalman Étendu (EKF)
 
-![Visualisation des trajectoires](results/trajectory_comparison.png)
-
 ## 📌 Contexte et Objectifs Métier
 
 La capacité à estimer précisément la trajectoire d’un objet mobile à partir de mesures bruitées est critique dans de nombreux domaines : défense, navigation autonome, radar, ou robotique.  
