@@ -16,19 +16,19 @@ Ce travail a été réalisé dans le cadre du cours de **Filtrage Linéaire et N
 Développement rigoureux des équations du filtre avec justification des étapes :
 
 - **Initialisation** :
-  \[
+  ```math
   \hat{X}_0 = \frac{Y_0 \cdot \sigma^2}{\tau^2 + \sigma^2}, \quad P_0 = \frac{\sigma^2 \cdot \tau^2}{\tau^2 + \sigma^2}
-  \]
+  ```
 
 - **Étape de prédiction** :
-  \[
+  ```math
   \hat{X}_n^- = a\hat{X}_{n-1}, \quad P_n^- = a^2P_{n-1} + \sigma^2
-  \]
+  ```
 
 - **Mise à jour** :
-  \[
+  ```math
   \hat{X}_n = \hat{X}_n^- + \frac{P_n^-}{P_n^- + \tau^2}(Y_n - \hat{X}_n^-)
-  \]
+  ```
 
 ### 2. Simulation des données
 
