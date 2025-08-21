@@ -88,6 +88,7 @@ Projet encadré par **Salima El Kolei**, enseignante-chercheuse à l’ENSAI
 ## 📬 Contact
 
 📧 sorobamara7@gmail.com
+💼 [LinkedIn](https://www.linkedin.com/in/bamarasoro/)
 
 ---
 
